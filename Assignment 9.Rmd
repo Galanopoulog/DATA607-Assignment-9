@@ -1,0 +1,65 @@
+---
+title: "Assignment 9"
+author: "Georgia Galanopoulos"
+date: "April 2, 2017"
+output: html_document
+---
+
+```{r}
+library(jsonlite)
+library(stringr)
+library(knitr)
+library(tidyr)
+library(dplyr)
+```
+
+###Tasks:
+
+##1. Choose one of the New York Times APIs
+
+The first necessity for approaching this assignment was to sign up for an NYT API key (from http://developer.nytimes.com/). After receiving it, I used the same website url to select a New York Times API to work with. After choosing the Article Search API, I decided to focus on picking the articles using February 1st of 2015 as the beginning date and sorting through any that included the keyword "Trump" from newest to oldest.
+
+```{r}
+archive = "https://api.nytimes.com/svc/search/v2/articlesearch.json?api-key=3cdaa2a1d0734fd180bd97c00cf962c3&q=Trump&begin_date=20150201&sort=newest"
+```
+
+
+##2. Construct an interface in R to read in the JSON data
+Because the API revealed only ten articles per page, I created a for loop to gather more than one page. However, because there were more than 40k hits, which is more than 4k pages, I selected the first 15 pages to work with. Inside the loop, each page was read using fromJSON() and then made into a dataframe. From there, certain columns that were either empty or held non-essential information were dropped. Using the loop, this process was repeated so that each newly-read page was bound to the previous one. Column names were changed for clarity. The publishing date and times were separated.
+```{r}
+# Empty dataframe
+articles = data.frame()
+
+# Pages for loop
+for (i in 0:15) {
+  url = paste0(archive, "&page=", i) 
+  each = fromJSON(url)
+  allarti = flatten(data.frame(each))
+  allarti = allarti[,c(4, 6, 10, 13:17)]
+  articles = rbind(articles,allarti)
+}
+
+# Changing column names 
+colnames(articles) = c("URL", "Paragraph", "Source", "Published", "Type", "Desk", "Section", "Subsection")
+
+# Replacing the letter T for easier column separation
+articles$Published = str_replace_all(articles$Published, "T", "-")
+
+# Separating dates and times
+articles = separate(articles, Published, c("Year", "Month", "Day" , "Hour", "Minute"))
+```
+
+## 3. Transform into an R dataframe
+
+Due to the for loop from above, each page is read in as a dataframe and attached to the previous page, creating one big dataframe.
+```{r}
+kable(head(articles, 3))
+```
+
+
+If we are interested in reading only news regarding Trump that involves foreign affairs, we can filter through the data to read the headlines or even follow up on the links provided.
+```{r}
+Foreign = filter(articles, Desk == "Foreign")
+kable(head(Foreign, 3))
+```
+
